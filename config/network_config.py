@@ -1,15 +1,14 @@
+from grapevine.util.message_codes import HANDSHAKE_RESPONSE
+from grapevine.communication.message import GrapeVineMessage
 import socket
 import uuid
 import sys
 import requests
 
 def get_ip():
-
-    page = requests.get("https://jsonip.com")
-    ip = page.json()['ip']
+    ip = '172.117.217.57'
 
     return ip
-
 
 TESTNET_PORT = 19292
 MAINNET_PORT = 9292
@@ -23,9 +22,6 @@ SEED_PEERS = [
      'hostname': socket.gethostbyaddr('18.218.229.217')[0]
      }, ]
 
-CONN_MESSAGE = {'header': 'welcome', 'id': 1, 'content': 'thank you for connecting',
-                'ip': get_ip(), 'uri': f'ws://{get_ip()}:{TESTNET_PORT}'}
-
 CONFIG_SETTINGS = {
     'GLOBAL': {
         'HOSTKEY': '/hostkey.pem'
@@ -33,7 +29,7 @@ CONFIG_SETTINGS = {
     'GRAPEVINE': {
         'cache_size': 50,
         'max_connections': 30,
-        'bootstrapper': '',
+        'bootstrapper': {'host':'127.0.0.1'},
         'listen_address': {'host': "0.0.0.0", 'port': f'{TESTNET_PORT}'},
         'api_address': {'host': "192.168.0.24", 'port': f'{TESTNET_PORT + 2}'},
         'max_ttl': 0

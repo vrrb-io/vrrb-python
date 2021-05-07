@@ -1,9 +1,11 @@
+from config.network_config import NETWORK_PORT
 import logging
 import socket 
 from multiprocessing import Process
 from .message import GrapeVineMessage
 from ..exceptions.exceptions import *
 from ..util.message_codes import *
+from ..util.queue_item_types import *
 from .receiver import Receiver
 
 class Sender(Process):
@@ -34,40 +36,96 @@ class Sender(Process):
         The sender gets the appropriate cxn/socket from the cxn_pool
         """
 
-        logging.info(f"{self.sender_id} start - PID: {self.pid}")
+        logging.info(f"Sender {self.sender_id} started - PID: {self.pid}")
 
         while True:
-            queue_item = self.from_controller_queue.get()
-            message_obj = GrapeVineMessage.from_json(queue_item)
-            code = message_obj.get_code()
+            queue_item = self.from_ctrl_queue.get()
+            queue_item_type = queue_item['type']
+            print(queue_item)
 
-            if code == HANDSHAKE:
+            if queue_item_type == SEND_MESSAGE:
                 """
-                Handle Handshake protocol
+                Send message to connection
                 """
-            elif code == NEW_PEER:
+                message_obj = GrapeVineMessage.from_json(queue_item['message'])
+                cxn_id = message_obj.get_sender_id()
+                logging.info(f"{self.sender_id} | Directing message to {cxn_id}")
+                try:
+                    cxn = self.cxn_pool.get_cxn(cxn_id)            
+                except GrapeVineIdentifierNotFound:
+                    cxn = None
+
+                if cxn:
+
+                    if message_obj:
+                        message_json = message_obj.to_json()
+                        message_bytes = message_obj.to_bytes()
+                        try:
+                            cxn.send(message_bytes)
+                            logging.debug(f'{self.sender_id} | Sent message ({message_json["code"]}) to peer -> {cxn_id}')
+                        except (ConnectionResetError, ConnectionAbortedError):
+                            self.cxn_pool.del_cxn(cxn_id)
+                            logging.error(f"{self.sender_id} | While sending a message, the peer disconnected")
+                else:
+                    logging.error(f"{self.sender_id} | No cxn found in cxn pool, giving up")
+
+            elif queue_item_type == ESTABLISH_CXN:
                 """
-                Handle new peer protocol
+                Establish a new connection
                 """
-            elif code == GET_PEERS:
-                """
-                Handle get peers protocol
-                """
-            elif code == SEND_PEERS:
-                """
-                Handle send peers protocol
-                """
-            elif code == NEW_BLOCK:
-                """
-                Handle new block protocol
-                """
-            elif code == NEW_TXN:
-                """
-                Handle new txn protocol
-                """
-            elif code == NEW_CONTRACT:
-                """
-                Handle new contract protocol
-                """
+                logging.info(f"{self.sender_id} | Establishing new connection to {queue_item['cxn_id']}")
+                cxn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                server_host = queue_item['cxn_id']
+                server_port = NETWORK_PORT['testnet']
+                try:
+                    cxn.connect((server_host, server_port))
+                    self.cxn_pool.add_cxn(server_host, cxn, server_id=server_host)
+                except ConnectionRefusedError:
+                    logging.error(f"{self.sender_id} | Cannot establish connection to {queue_item['cxn_id']}")
+                
+
+                logging.info(f"{self.sender_id} | Added new cxn to the cxn pool")
+
+                client_receiver = Receiver(
+                    cxn,
+                    server_host,
+                    server_port,
+                    self.to_ctrl_queue,
+                    self.cxn_pool
+                )
+
+                client_receiver.start()
+            
+            elif queue_item_type == SPREAD_MESSAGE:
+                message_obj = GrapeVineMessage.from_json(queue_item['message'])
+                all_cxn_ids = self.cxn_pool.get_ids()
+                for cxn_id in all_cxn_ids:
+                    try:
+                        cxn = self.cxn_pool.get_cxn(cxn_id)
+                    except GrapeVineIdentifierNotFound:
+                        cxn = None
+
+                    if cxn:
+                        if message_obj:
+                            message_json = message_obj.to_json()
+                            message_bytes = message_obj.to_bytes()
+                            try:
+                                cxn.send(message_bytes)
+                                logging.debug(
+                                    f'{self.sender_id} | Sent message ({message_json["code"]}) to peer -> {cxn_id}')
+                            except (ConnectionResetError, ConnectionAbortedError):
+                                self.cxn_pool.del_cxn(cxn_id)
+                                logging.error(
+                                    f"{self.sender_id} | While sending a message, the peer disconnected")
+                else:
+                    logging.error(
+                        f"{self.sender_id} | No cxn found in cxn pool, giving up")
+
+
+
+
             else:
-                return None
+                raise GrapeVineQueueException(f"{self.sender_id} | Queue item cannot be identified. This should never happen")
+
+if __name__ == '__main__':
+    print('Running Sender outside of network main')

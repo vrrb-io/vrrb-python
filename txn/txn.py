@@ -1,8 +1,9 @@
 from util.crypto_hash import crypto_hash
 import uuid
 import time
+import json
+import binascii
 from wallet.basic_wallet import BasicWallet
-from blockchain.blockchain import Blockchain
 from util.crypto_hash import crypto_hash
 from config.blockchain_config import (MINING_REWARD_INPUT, generate_reward)
 
@@ -38,7 +39,8 @@ class Txn:
         """
         return {
             'address': sender_wallet.address,
-            'amount': sender_wallet.balance,
+            'amount': sum([output['recipient'][i]['amount'] for i in range(len(output['recipient']))]),
+            'balance': sender_wallet.balance,
             'public_key': sender_wallet.public_key,
             'signature': sender_wallet.sign(output),
             'timestamp': time.time_ns()
@@ -74,6 +76,17 @@ class Txn:
         txn_dict = {'id': self.id, 'input': self.input, 'output': self.output}
         return txn_dict
     
+    def to_bytes(self):
+        txn_json = self.to_json()
+        txn_bytes = bytes(json.dumps(txn_json), 'utf-8')
+        return b'0x' + binascii.hexlify(txn_bytes)
+
+    @staticmethod
+    def from_bytes(txn_bytes: bytearray):
+        txn_json = json.loads(binascii.unhexlify(
+            txn_bytes[2:].decode('utf-8')))
+        return Txn.from_json(txn_json)
+
     @staticmethod
     def from_json(txn_json):
         """
@@ -81,6 +94,7 @@ class Txn:
         """
         return Txn(**txn_json)
     
+
     @staticmethod
     def is_valid_txn(txn):
         """
@@ -91,21 +105,17 @@ class Txn:
             if len(txn.output['recipient']) > 1 > len(txn.output['recipient']):
                 raise Exception("Invalid number of mining rewards")
 
-            if float(txn['output']['recipient'][0]['amount']) > (40**4):
+            if float(txn['output']['recipient'][0]['amount']) > (16**4):
                 raise Exception("The block reward exceeds the maximum block reward")
 
-            return
+            return True
         
-        amounts = []
-        for i in range(len(txn.output['recipient'])):
-            amounts.append(txn.output['recipient'][i]['amount'])
-        
-        amounts.append(txn.output['sender']['remaining_balance'])
+        amounts = [float(txn.output['recipient'][i]['amount']) for i in range(len(txn.output['recipient']))]
 
         output_total = sum(amounts)
 
-        if txn.input['amount'] != output_total:
-            raise Exception("Invalid txn output values, do not match amount")
+        if float(txn.input['amount']) != float(output_total):
+            raise Exception("Invalid txn output values do not match amount")
 
         if not BasicWallet.verify(
             txn.input['public_key'],
@@ -113,7 +123,9 @@ class Txn:
             txn.input['signature']):
             
             raise Exception('Transaction signature is invalid')
-    
+
+        return True
+
     @staticmethod
     def reward_txn(miner_wallet):
         """
@@ -122,18 +134,8 @@ class Txn:
 
         output = {}
         output['recipient'] = [{'address': miner_wallet.address, 'amount': generate_reward()}]
-        miner_wallet.blockchain.account_model.update_balances(miner_wallet.address, output['recipient'][0]['amount'])
+        miner_wallet.blockchain.account_model.update_balances(
+            miner_wallet.address, miner_wallet.pk_hash,
+            float(output['recipient'][0]['amount']))
         return Txn(input=MINING_REWARD_INPUT, output=output)
     
-def main():
-    blockchain = Blockchain()
-    wallet = BasicWallet(blockchain)
-    txn = Txn(wallet, BasicWallet(blockchain).address, 15)
-    txn_json = txn.to_json()
-    print(f"txn_json: {txn_json}\n")
-    print(f"restored_txn: {Txn.from_json(txn_json)}")
-    
-
-
-if __name__ == '__main__':
-    main()

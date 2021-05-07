@@ -44,7 +44,7 @@ class Server(Process):
                     
                     """initiate a receiver object to receive message, provide 
                     the client socket and message queue to the receiver process"""
-                    receiver = Receiver(_client, self.queue)
+                    receiver = Receiver(_client,client_ip, client_port,self.queue, self.cxn_pool)
                     receiver.start()    # Start the receiver process
                     logging.info(f"New connections -> {receiver} accepted connection from {client_ip}:{client_port}") # log the new connection
                     

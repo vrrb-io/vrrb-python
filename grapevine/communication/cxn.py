@@ -1,3 +1,4 @@
+from grapevine.exceptions.exceptions import GrapeVineIdentifierNotFound
 import uuid
 import time
 import logging
@@ -11,7 +12,7 @@ class CxnPool:
     CXN = 'cxn'
     SERVER_ID = 'server_id'
 
-    def __init__(self, cxn_pool_id=None, cache_size=30, _cxns=Manager().dict(), _pool_lock=Lock()):
+    def __init__(self, cxn_pool_id=None, cache_size=30):
         """
         Constructor for the GrapeVine CxnPool
 
@@ -20,9 +21,9 @@ class CxnPool:
         """
 
         self.cxn_pool_id = cxn_pool_id or crypto_hash(str(uuid.uuid4()), time.time_ns())
-        self._cxns = _cxns
+        self._cxns = Manager().dict()
         self._cache_size = cache_size
-        self._pool_lock = _pool_lock
+        self._pool_lock = Lock()
 
     
     def add_cxn(self, _id, cxn, server_id=None):
@@ -40,6 +41,7 @@ class CxnPool:
         if not server_id:
             server_ip = _id
             server_id = f'{server_ip}:{TESTNET_PORT}'
+        logging.info(f'New Cxn Id: {_id} --> {cxn}')
         self._pool_lock.acquire()
         if _id not in self._cxns:
             self._cxns[_id] = {
@@ -49,7 +51,7 @@ class CxnPool:
 
             logging.debug(f"{self.cxn_pool_id} | Added new cxn {_id} (pool: {self}")
             self._pool_lock.release()
-            # self._maintain_cxn()
+            # self.__maintain_cxn()
         else:
             self._pool_lock.release()
             logging.debug(f"{self.cxn_pool_id} | Updating information about cxn {_id} failed because it no longer exists")
@@ -87,6 +89,16 @@ class CxnPool:
             self._pool_lock.release()
             raise Exception(f"Cannot find id {_id}")
     
+    def get_cxn(self, _id):
+        self._pool_lock.acquire()
+        cxn = self._cxns.get(_id, None)
+        if cxn:
+            self._pool_lock.release()
+            return cxn[CxnPool.CXN]
+        else:
+            self._pool_lock.release()
+            raise GrapeVineIdentifierNotFound(f'Cannot find id: {_id}')
+
     def get_ids(self) -> list:
         """
         Get a list of all ids
@@ -118,23 +130,25 @@ class CxnPool:
         return server_ids
     
     def __str__(self):
-        """
-        String representation of CxnPool
-        """
-        return self.__str__
+        output = ', '.join(
+            [f'{key}<={val[CxnPool.SERVER_ID]}' for key, val in self._cxns.items()])
+
+        if output == '':
+            output = 'Pool is empty'
+        return output
     
-    def __repr__(self):
-        """
-        representation of CxnPool
-        """
-        return self.__repr__
+    # def __repr__(self):
+    #     """
+    #     representation of CxnPool
+    #     """
+    #     return self.__repr__
     
     def to_json(self):
         """
         json serialized representation of cxn pool
         """
         return self.__dict__
-    
+
     def _maintain_cxns(self):
         """
         Maintain the list of cxns. If number of current cxns
@@ -193,3 +207,5 @@ class CxnPool:
         else:
             return None
     
+if __name__ == '__main__':
+    print("running cxn pool outside of grapevine main")

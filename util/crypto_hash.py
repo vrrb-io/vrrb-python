@@ -26,6 +26,5 @@ def main():
     print(f"crypto_hash(2, 'one', [3]): {crypto_hash(2, 'one', [3])}")
     m = b58encode_check(crypto_hash_ripemd160(crypto_hash('ansOWL89!')))[0:12]
     print(m)
-
 if __name__ == '__main__':
     main()

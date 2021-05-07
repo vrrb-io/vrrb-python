@@ -13,17 +13,23 @@ from protocol.account_model import AccountModel
 
 class BasicWallet:
 
-    def __init__(self, blockchain=None, network=VRRB_TESTNET):
+    def __init__(self, blockchain, address=None, network=VRRB_TESTNET, private_key=None):
         self.blockchain = blockchain
-        self.private_key = ec.generate_private_key(ec.SECP256K1(), default_backend())
+        self.private_key = private_key if private_key else ec.generate_private_key(ec.SECP256K1(), default_backend())
         self.public_key = self.private_key.public_key()
         self.serialize_public_key()
-        self.address = (network['wallet_byte_prefix'] + b58encode_check(crypto_hash_ripemd160(crypto_hash(self.public_key)))).decode('utf-8')
+        self.address = address if address else (network['wallet_byte_prefix'] + b58encode_check(crypto_hash_ripemd160(crypto_hash(self.public_key)))).decode('utf-8')
+        self.pk_hash = crypto_hash(str(self.private_key))
         if network == VRRB_TESTNET:
-            self.blockchain.account_model.add_account(self.address)
-            self.blockchain.account_model.update_balances(self.address, STARTING_BALANCE)
+            self.blockchain.account_model.add_account(self.address, self.pk_hash)
+            self.blockchain.account_model.update_balances(self.address, self.pk_hash, STARTING_BALANCE)
 
-    
+    def restore_wallet(self, private_key, blockchain):
+        if self.blockchain:
+            for account in self.blockchain.account_model.accounts:
+                address, pk_hash = account
+                if crypto_hash(str(private_key)) == pk_hash:
+                    self = BasicWallet(address, blockchain, private_key)
 
     @property
     def balance(self):
@@ -32,11 +38,17 @@ class BasicWallet:
         """
         return self.blockchain.account_model.get_balance(self.address)
     
+    @property
+    def claims_owned(self):
+        """
+        return a list of claims owned by the address
+        """
+        return self.blockchain.account_model.get_claims_owned(self.address, self.pk_hash)
+
     def sign(self, data):
         """
         Generate signature based on data using the local private key
         """
-
         return decode_dss_signature(self.private_key.sign(
             json.dumps(data).encode('utf-8'), ec.ECDSA(hashes.SHA256())
         ))

@@ -1,4 +1,7 @@
-class Txn_Pool:
+import json
+import binascii
+
+class TxnPool:
     def __init__(self):
         self.txn_map = {}
     
@@ -27,8 +30,27 @@ class Txn_Pool:
     
     def clear_txns(self, blockchain):
         for block in blockchain.chain:
-            for txn in block.data['txns']:
+            for txn in block.data:
                 try:
                     del self.txn_map[txn['id']]
                 except KeyError:
                     pass
+    
+    def to_json(self):
+        return self.__dict__
+    
+    def to_bytes(self):
+        txn_pool_json = self.to_json()
+        txn_pool_bytes = bytes(json.dumps(txn_pool_json), 'utf-8')
+        return b'0x' + binascii.hexlify(txn_pool_bytes)
+
+    @staticmethod
+    def from_bytes(txn_pool_bytes: bytearray):
+        txn_pool_json = json.loads(binascii.unhexlify(
+            txn_pool_bytes[2:].decode('utf-8')))
+        return TxnPool.from_json(txn_pool_json)
+
+    @staticmethod
+    def from_json(txn_pool_json):
+        return TxnPool(**txn_pool_json)
+

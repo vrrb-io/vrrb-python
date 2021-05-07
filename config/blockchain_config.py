@@ -2,16 +2,15 @@ import time
 import numpy as np
 import random
 import decimal
+import hashlib
 
 GENESIS_DATA = {
     'timestamp': 1, 
-    'last_block_hash': 
-    'genesis_last_hash', 
-    'block_hash': 
-    'genesis_hash', 
-    'data': [], 
-    'difficulty': 1, 
-    'nonce': 1}
+    'last_block_hash': 'genesis_last_hash', 
+    'block_hash': 'genesis_hash', 
+    'data': [],
+    'claim': 'settler_claim',
+    }
 
 VRRB_ALPHABET = b'VrRbJSQlk6EKjgdmtf8u9pIHvhsi3DPF1qn2UB7Nca54MLeTACG'
 VRRB_TESTNET = {
@@ -36,7 +35,7 @@ def decay_calculator(
 
 
 
-def weighted_choice(objects, weights):
+def weighted_choice(objects, weights, random_hash):
     """
     Generate the mining reward for a given block
 
@@ -45,15 +44,15 @@ def weighted_choice(objects, weights):
     sum_of_weights = weights.sum()
     np.multiply(weights, 1/sum_of_weights, weights)
     weights = weights.cumsum()
-    x = random.random()
+    x = np.random.random()
     for i in range(len(weights)):
         if x < weights[i]:
             return objects[i]
 
-FLAKE_REWARD = (1, 39)
-NUGGET_REWARD = (40, (40**2.) - 1)
-VEIN_REWARD = (40**2, (40**3) - 1)
-MOTHERLODE_REWARD = (40**3, (40**4))
+FLAKE_REWARD = (1, 16)
+NUGGET_REWARD = (16, (16**2.) - 1)
+VEIN_REWARD = (16**2, (16**3) - 1)
+MOTHERLODE_REWARD = (16**3, (16**4))
 
 FLAKES_AVAILABLE = float('inf')
 
@@ -146,7 +145,8 @@ def generate_reward_amount(reward_range):
 
 def generate_reward(reward_list=REWARDS_LIST, reward_weight=REWARDS_WEIGHTS):
 
-    reward = weighted_choice(reward_list, reward_weight)
+    reward = weighted_choice(reward_list, reward_weight, hashlib.sha3_256(
+        str(np.random.rand(random.randint(0, (10000)))).encode('utf-8')).hexdigest()[random.randint(0,16):random.randint(32, 64)])
     if reward['type'] == 'motherlode':
         if reward['num_available_curr_year'] > 0:
             POTENTIAL_REWARD[reward['type']]['num_available_overall'] -= 1

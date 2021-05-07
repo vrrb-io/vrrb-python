@@ -1,3 +1,4 @@
+from grapevine.util.queue_item_types import NEW_CXN
 import logging
 import time
 import uuid
@@ -21,7 +22,7 @@ class Receiver(Process):
         """
 
         Process.__init__(self)
-        self.client_receiver_id = crypto_hash(str(uuid.uuid4(), time.time_ns()))
+        self.client_receiver_id = crypto_hash(str(uuid.uuid4()), time.time_ns())
         self.client_socket = client_socket
         self.cxn_id = f"{ipv4_address}:{tcp_port}"
         self.to_ctrl_queue = to_ctrl_queue
@@ -55,7 +56,9 @@ class Receiver(Process):
         """
 
         self.to_ctrl_queue.put({
-            'message': f"New connection to {self.cxn_id}"
+            'type': NEW_CXN,
+            'message': f"New connection to {self.cxn_id}",
+            'cxn_id': self.cxn_id
         })
 
         try:
@@ -78,8 +81,12 @@ class Receiver(Process):
 
         returns: The received message object
         """
-        message = self.client_socket.recv()
+        message = self.client_socket.recv(1024)
         self.to_ctrl_queue.put({
             'message': f"New Message Received: {message}"
         })
         return message
+
+
+if __name__ == '__main__':
+    print('running receiver outside of server')
