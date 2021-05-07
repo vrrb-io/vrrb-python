@@ -2,7 +2,7 @@ from config.blockchain_config import SECONDS
 from grapevine.communication.message import GrapeVineMessage
 from grapevine.util.message_codes import *
 import time
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect
 from flask_cors import CORS
 from blockchain.blockchain import Blockchain
 from txn.txn import Txn
@@ -52,26 +52,29 @@ def route_appropriate_claim():
 
 @app.route('/wallet/transact', methods=['GET', 'PUT', 'POST'])
 def route_wallet_transact():
-    txn_data = request.get_json()
+    txn_amount = float(request.args.get('amount'))
+    txn_recipient = request.args.get('to')
     txn = txn_pool.existing_txn(wallet.address)
 
     if txn:
         txn.update_txn(
             wallet,
-            txn_data['recipient'],
-            txn_data['amount']
+            txn_recipient,
+            txn_amount
         )
 
     else:
 
         txn = Txn(
             wallet,
-            txn_data['recipient'],
-            txn_data['amount']
+            txn_recipient,
+            txn_amount
         )
-    
+
+        txn_pool.set_txn(txn)
+
     message = GrapeVineMessage(NEW_TXN, 'new_txn', 'new_transaction', txn.to_json(), sender_id=wallet.address)
-    print(message.data)
+    return redirect('/wallet/info')
 
 @app.route('/wallet/info')
 def route_wallet_info():

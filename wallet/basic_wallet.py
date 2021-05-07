@@ -9,7 +9,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.exceptions import InvalidSignature
 from config.blockchain_config import STARTING_BALANCE, VRRB_TESTNET, VRRB_MAINNET
 from util.base58 import b58encode, b58decode, b58encode_check, b58decode_check
-from protocol.account_model import AccountModel
 
 class BasicWallet:
 
@@ -36,7 +35,7 @@ class BasicWallet:
         """
         Return the balance of the address
         """
-        return self.blockchain.account_model.get_balance(self.address)
+        return self.blockchain.account_model.get_balance(self.address, self.pk_hash)
     
     @property
     def claims_owned(self):
@@ -84,14 +83,17 @@ class BasicWallet:
 
 
 def main():
-    wallet = BasicWallet()
+    from blockchain.blockchain import Blockchain
+    blockchain = Blockchain()
+    wallet = BasicWallet(blockchain)
     data = {'foo': 'bar'}
     signature = wallet.sign(data)
+    print(wallet.balance)
     print(f"address: {wallet.address}")
     print(f"signature: {signature}")
     valid_signature = BasicWallet.verify(wallet.public_key, data, signature)
     print(f'valid_signature: {valid_signature}')
-    invalid_signature = BasicWallet.verify(BasicWallet().public_key, data, signature)
+    invalid_signature = BasicWallet.verify(BasicWallet(blockchain).public_key, data, signature)
     print(f"invalid_signature: {invalid_signature}")
 
 if __name__ == '__main__':

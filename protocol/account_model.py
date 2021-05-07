@@ -6,23 +6,23 @@ class AccountModel:
         self.claims = {}
     
     def add_account(self, address, pk_hash):
-        if not address in self.accounts:
+        if not (address, pk_hash) in self.accounts:
             self.accounts.append((address, pk_hash))
             self.balances[address] = 0
     
-    def get_balance(self, address):
+    def get_balance(self, address, pk_hash):
         if address not in self.accounts:
-            self.add_account(address)
+            self.add_account(address, pk_hash)
         return self.balances[address]
     
     def update_balances(self, address, pk_hash, amount):
-        if address not in self.accounts:
+        if (address, pk_hash) not in self.accounts:
             self.add_account(address, pk_hash)
         
         self.balances[address] += amount
     
     def get_claims_owned(self, address, pk_hash):
-        if address not in self.accounts:
+        if (address, pk_hash) not in self.accounts:
             self.add_account(address, pk_hash)
         return self.claims[address]
     

@@ -19,7 +19,7 @@ class Txn:
     
     def create_output(self, sender_wallet, recipient, amount):
 
-        if float(amount) > float(sender_wallet.blockchain.account_model.get_balance(sender_wallet.address)):
+        if float(amount) > float(sender_wallet.blockchain.account_model.get_balance(sender_wallet.address, sender_wallet.pk_hash)):
             raise Exception('Amount exceeds balance')
 
         output = {}
@@ -28,8 +28,8 @@ class Txn:
             'address': sender_wallet.address, 
             'remaining_balance': f"{(float(sender_wallet.balance) - float(amount)):.18f}"}
         sender_wallet.blockchain.account_model.update_balances(
-            sender_wallet.address, -amount)
-        sender_wallet.blockchain.account_model.update_balances(recipient, amount)
+            sender_wallet.address, sender_wallet.pk_hash, -amount)
+        sender_wallet.blockchain.account_model.update_balances(recipient, None, amount)
         return output
     
     @staticmethod
