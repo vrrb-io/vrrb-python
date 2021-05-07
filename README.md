@@ -25,28 +25,27 @@ Visit the link to the localhost:port where the app is being served
 
 The following instructions are for different routes
 
-To see available claims:
-    /claims
+* To see available claims:
+    * /claims
 
-To homestead claims:
-    /homstead_claims
+* To homestead claims:
+    * /homstead_claims
 
-To mine claims:
-    /blockchain/appropriate
+* To mine claims:
+    * /blockchain/appropriate
 
-If the claim is not yet mature (current time is less than 
-claim maturation time) a new block will not be mined
+* If the claim is not yet mature (current time is less than claim maturation time) a new block will not be mined
 
-To see wallet information:
-    /wallet/info
+* To see wallet information:
+    * /wallet/info
 
-To see entire blockchain:
-    /blockchain
+* To see entire blockchain:
+    * /blockchain
 
-To execute a (fake) transaction for 10  coins to a fake recipient (try this before mining a claim):
-    /wallet/transact?amount=10?to=0x92abcdef0123456789fedcba9876543210
+* To execute a (fake) transaction for 10  coins to a fake recipient (try this before mining a claim):
+    * /wallet/transact?amount=10?to=0x92abcdef0123456789fedcba9876543210
 
-To see the above transaction set in the trasaction pool:
-    /txns
+* To see the above transaction set in the trasaction pool:
+    * /txns
 
-After mining a claim, check out the new claims created by the new block by going back to claims route
+*After mining a claim, check out the new claims created by the new block by going back to claims route*
